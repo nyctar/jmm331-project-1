@@ -1,0 +1,189 @@
+---
+title: "SCSData"
+author: "Yestin Arvin Gochuico"
+date: "2025-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Data
+I will isolate all the incidents related to Chinese vessels.
+```{r}
+library(tidyverse)
+library(treemapify)
+library(networkD3)
+```
+
+```{r}
+df <- read.csv("SCSIncidents.csv", header=FALSE)
+df
+```
+```{r}
+colnames(df) = c('Country', 'Year', 'Month', 'Day', 'Latitude', 'Longitude', 'Level', 'Notes')
+df
+```
+```{r}
+df_china <- df %>%
+  filter(grepl("CN", Country))
+df_china
+```
+```{r}
+df_multi <- df %>%
+  filter(grepl("/", Country)) %>%
+  filter(grepl("CN", Country))
+df_multi
+```
+Chinese incidents tallied per Country
+```{r}
+Event_TallyPerCountry <- df_multi %>%
+  separate_rows(Country, sep = "/") %>%
+  filter(Country != "CN") %>%
+  count(Country, name = "Frequency")
+Event_TallyPerCountry
+```
+```{r}
+ggplot(Event_TallyPerCountry, aes(x = Country, y = Frequency)) +
+  geom_bar(stat = "identity") +
+    theme_minimal()
+ggsave("NumIncidentsPerCountry.svg", device = "svg")
+```
+Chinese incidents trend per year
+```{r}
+year_counts <- as.data.frame(table(df_china$Year))
+colnames(year_counts) <- c("Year", "count")
+
+# Create a bar plot
+ggplot(year_counts, aes(x = Year, y = count, group = 1)) +
+  geom_line() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size=8))
+ggsave("TimeSeriesIncidents.svg", device = "svg")
+```
+Chinese incidents trend per Country
+```{r}
+Event_TrendPerCountry <- df_multi %>%
+  separate_rows(Country, sep = "/") %>%
+  filter(Country != "CN")
+Event_TrendPerCountry
+```
+```{r}
+# Assuming your dataset is named df
+Event_TrendPerCountry <- Event_TrendPerCountry %>%
+  mutate(Date = as.Date(paste(Year, Month, Day, sep = "-"), format = "%Y-%m-%d"))
+Event_TrendPerCountry
+```
+```{r}
+# Sort data by Country and Date
+Event_TrendPerCountry <- Event_TrendPerCountry %>%
+  arrange(Country, Date)
+
+# Add the cumulative frequency column
+Event_TrendPerCountry <- Event_TrendPerCountry %>%
+  group_by(Country) %>%
+  mutate(Cumulative_Frequency = row_number())
+Event_TrendPerCountry
+```
+
+```{r}
+# Now you can plot using ggplot2
+ggplot(Event_TrendPerCountry, aes(x = Date, y = Cumulative_Frequency, color = Country)) +
+  geom_line() +
+  theme_minimal()
+ggsave("NumIncidentsPerCountry.svg", device = "svg")
+```
+
+Difference in biggest vessel size
+```{r}
+vessel <- read.csv("VesselSize.csv", header=FALSE)
+vessel
+```
+```{r}
+colnames(vessel) = c('Country', 'VesselName', 'DisplacementTons')
+vessel
+```
+```{r}
+ggplot(vessel, aes(x = VesselName, y = DisplacementTons)) +
+  geom_tile(width = 0.7, aes(y = DisplacementTons / 2, height = DisplacementTons)) +
+  coord_flip() +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_minimal()
+
+ggsave("vesselsize.svg", device = "svg")
+```
+```{r}
+MCI <- read.csv("MilitaryCapabilityIndex.csv")
+MCI
+```
+
+
+```{r}
+ggplot(MCI, aes(area = MilitaryCapabilityIndex, fill = Country)) +
+  geom_treemap() +
+  theme_minimal()
+ggsave("MCITreeMap.svg", device = "svg")
+```
+
+```{r}
+MSP <- read.csv("MaritimeSeaPower.csv")
+MSP
+```
+```{r}
+MSP <- MSP %>%
+  filter(Country %in% c("China", "Vietnam", "Malaysia", "Philippines", "Brunei", "Indonesia"))
+MSP
+```
+```{r}
+MSP_Sankey <- MSP %>%
+  pivot_longer(cols = -Country, names_to = "AssetType", values_to = "Count") %>%
+  filter(Count > 0)
+MSP_Sankey
+```
+```{r}
+# Create nodes
+nodes <- data.frame(name = unique(c(MSP_Sankey$AssetType, MSP_Sankey$Country)))
+nodes
+```
+```{r}
+# Create links
+links <- MSP_Sankey %>%
+  mutate(
+    SourceID = match(AssetType, nodes$name) - 1,
+    TargetID = match(Country, nodes$name) - 1
+  ) %>%
+  select(SourceID, TargetID, Count)
+```
+```{r}
+sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "SourceID", Target = "TargetID",
+              Value = "Count", NodeID = "name",
+              fontSize = 12, nodeWidth = 30)
+
+ggsave("MSPSankey.svg", device = "svg")
+```
+
+
+
+
+```{r}
+df_china_subi_reef <- df_china %>%
+  filter(Latitude >= 10, Latitude <= 14, Longitude >= 111, Longitude <= 115)
+df_china_subi_reef
+```
+
+```{r}
+df_china <- df_china %>%
+  select("Latitude", "Longitude")
+df_china
+```
+```{r}
+names(df_china) <- NULL
+df_china
+```
+```{r}
+write.csv(df_china,"SCSData_Clean.csv", row.names = FALSE)
+```
+```{r}
+write.csv(df_china_subi_reef,"SCSData_Subi.csv", row.names = FALSE)
+```
