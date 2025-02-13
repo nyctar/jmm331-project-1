@@ -2,49 +2,54 @@
 title: "SCSData"
 author: "Yestin Arvin Gochuico"
 date: "2025-02-06"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# South China Sea Data Initiative - Data Exploration and Analysis
-My project is about  
-# Data
-I will isolate all the incidents related to Chinese vessels.
-```{r}
+# China's Growing Presence in the Indo-Pacific Region  - Data Exploration and Analysis
+### Data
+Incidents related to Chinese and ASEAN vessels will be isolated since I'm only interested in the conflict with the involved ASEAN countries in disputed territorial waters.
+
+First, we import necessary libraries.
+```{r, message=FALSE}
 library(tidyverse)
 library(treemapify)
 library(networkD3)
 library(htmlwidgets)
 ```
 
-```{r}
+```{r, results=FALSE}
 df <- read.csv("SCSIncidents.csv", header=FALSE)
-df
+head(df)
 ```
-```{r}
+To prepare the data for data exploration, column names are added.
+```{r, results=FALSE}
 colnames(df) = c('Country', 'Year', 'Month', 'Day', 'Latitude', 'Longitude', 'Level', 'Notes')
-df
+head(df)
 ```
-```{r}
+Here, all incidents related to China are isolated by filtering the `Country` column with `CN`.
+```{r, results=FALSE}
 df_china <- df %>%
   filter(grepl("CN", Country))
-df_china
+head(df_china)
 ```
-```{r}
+In this part, I'm only interested in the China-related incidents that is associated with another country. We can verify this by getting all the observations that has multiple country codes in the `Country` column.
+```{r, results=FALSE}
 df_multi <- df %>%
   filter(grepl("/", Country)) %>%
   filter(grepl("CN", Country))
-df_multi
+head(df_multi)
 ```
-Chinese incidents tallied per Country
-```{r}
+All the countries associated with the incidents will be tallied. For this, we need to remove the `CN` part of observations.
+```{r, results=FALSE}
 Event_TallyPerCountry <- df_multi %>%
   separate_rows(Country, sep = "/") %>%
   filter(Country != "CN")
-Event_TallyPerCountry
+head(Event_TallyPerCountry)
 ```
+Now that we have the dataframe needed, we can now make a bar chart to compare the numbers of China-incidents per ASEAN country involved. 
 ```{r}
 target_countries <- c("CN", "VN", "MY", "PH", "BN", "ID")
 
@@ -60,64 +65,61 @@ ggplot(Event_TallyPerCountry, aes(x = factor(Country, levels = c(target_countrie
     theme_minimal()
 ggsave("NumIncidentsPerCountry.svg", device = "svg")
 ```
-Chinese incidents trend per year
-```{r}
-year_counts <- as.data.frame(table(df_china$Year))
-colnames(year_counts) <- c("Year", "count")
-year_counts
-```
-```{r}
-# Create a bar plot
-ggplot(year_counts, aes(x = Year, y = count, group = 1)) +
-  geom_line() +
-  theme_minimal() +
-  theme(axis.text.x = element_text(size=8))
-ggsave("TimeSeriesIncidents.svg", device = "svg")
-```
-
-Chinese incidents trend per Country
-```{r}
+Next, I'm interested in seeing the trend of total China-related incidents per ASEAN country.
+```{r, results=FALSE}
 Event_TrendPerCountry <- df_multi %>%
   separate_rows(Country, sep = "/") %>%
   filter(Country != "CN")
-Event_TrendPerCountry
+head(Event_TrendPerCountry)
 ```
-```{r}
+The `Year`, `Month`, and `Day` of the data is separated by columns. It has to be combined to be used for a time series line chart.
+```{r, results=FALSE}
 Event_TrendPerCountry <- Event_TrendPerCountry %>%
   mutate(Country = ifelse(Country %in% target_countries, Country, "Others")) %>%
   group_by(Country) %>%
   mutate(Date = as.Date(paste(Year, Month, Day, sep = "-"), format = "%Y-%m-%d"))
-Event_TrendPerCountry
+head(Event_TrendPerCountry)
 ```
-```{r}
-# Sort data by Country and Date
+Next, we have to add a cumulative frequency column, so the total number of incidents is recorded for each date and for each country.
+```{r, results=FALSE}
+#sort data by Country and Date
 Event_TrendPerCountry <- Event_TrendPerCountry %>%
   arrange(Country, Date)
 
-# Add the cumulative frequency column
+#add cumulative frequency column
 Event_TrendPerCountry <- Event_TrendPerCountry %>%
   group_by(Country) %>%
   mutate(Cumulative_Frequency = row_number())
-Event_TrendPerCountry
+head(Event_TrendPerCountry)
 ```
-
+```{r, results=FALSE}
+Event_TrendPerCountry %>%
+  filter(Country == "ID")
+```
+Now that the dataframe is done, I can now plot the numerical data as a line chart with countries as the categories with a legend.
 ```{r}
-# Now you can plot using ggplot2
 ggplot(Event_TrendPerCountry, aes(x = Date, y = Cumulative_Frequency, color = Country)) +
   geom_line() +
-  theme_minimal()
-ggsave("NumIncidentsPerCountry.svg", device = "svg")
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  expand_limits(x = as.Date(c("2009-01-01", "2023-12-31")))
+ggsave("PerCountry.svg", device = "svg")
 ```
 
 Difference in biggest vessel size
-```{r}
+```{r, results=FALSE}
 vessel <- read.csv("VesselSize.csv", header=FALSE)
-vessel
+head(vessel)
+```
+```{r, results=FALSE}
+colnames(vessel) = c('Country', 'VesselName', 'DisplacementTons')
+head(vessel)
 ```
 ```{r}
-colnames(vessel) = c('Country', 'VesselName', 'DisplacementTons')
-vessel
+vessel %>%
+  arrange(DisplacementTons)
 ```
+
 ```{r}
 ggplot(vessel, aes(x = VesselName, y = DisplacementTons)) +
   geom_tile(width = 0.7, aes(y = DisplacementTons / 2, height = DisplacementTons)) +
@@ -140,45 +142,46 @@ ggplot(MCI, aes(area = MilitaryCapabilityIndex, fill = Country)) +
 ggsave("MCITreeMap.svg", device = "svg")
 ```
 
-```{r}
+```{r, results=FALSE}
 MSP <- read.csv("MaritimeSeaPower.csv")
-MSP
+head(MSP)
 ```
-```{r}
+```{r, results=FALSE}
 MSP <- MSP %>%
   filter(Country %in% c("China", "Vietnam", "Malaysia", "Philippines", "Brunei", "Indonesia"))
-MSP
+head(MSP)
 ```
-```{r}
+```{r, results=FALSE}
 MSP_Count <- MSP %>%
   mutate(Total = rowSums(select(., -Country), na.rm = TRUE))
-MSP_Count
+head(MSP_Count)
 ```
 
-```{r}
+```{r, results=FALSE}
 MSP_Long <- MSP %>%
   pivot_longer(cols = -Country, names_to = "AssetType", values_to = "Count") %>%
   filter(Count > 0)
-MSP_Long
+head(MSP_Long)
 ```
-
-
-```{r fig.height = 5, fig.width = 10}
-ggplot(MSP_Long, aes(x = Country, y= Count, fill=AssetType)) +
+```{r}
+MSP_Count <- MSP_Long %>%
+  group_by(Country) %>%
+  summarise(Total = sum(Count, na.rm = TRUE))
+MSP_Count
+```
+```{r}
+ggplot(MSP_Long, aes(x = factor(Country, levels = c("China", "Vietnam", "Philippines", "Malaysia", "Indonesia", "Brunei")), y= Count, fill = Country)) +
   geom_bar(stat="identity") +
-  coord_flip() +
   theme_minimal()
 ggsave("MSP.svg", device = "svg")
 ```
 
-```{r}
-# Create nodes
+```{r, results=FALSE}
 nodes <- data.frame(name = unique(c(MSP_Long$AssetType, MSP_Long$Country)))
-nodes
+head(nodes)
 ```
 
 ```{r}
-# Create links
 links <- MSP_Long %>%
   mutate(
     SourceID = match(AssetType, nodes$name) - 1,
@@ -194,20 +197,20 @@ sankeyNetwork(Links = links, Nodes = nodes,
 ```
 
 
-```{r}
+```{r, results=FALSE}
 df_china_subi_reef <- df_china %>%
   filter(Latitude >= 10, Latitude <= 14, Longitude >= 111, Longitude <= 115)
-df_china_subi_reef
+head(df_china_subi_reef)
 ```
 
-```{r}
+```{r, results=FALSE}
 df_china <- df_china %>%
   select("Latitude", "Longitude")
-df_china
+head(df_china)
 ```
-```{r}
+```{r, results=FALSE}
 names(df_china) <- NULL
-df_china
+head(df_china)
 ```
 ```{r}
 write.csv(df_china,"SCSData_Clean.csv", row.names = FALSE)
