@@ -8,9 +8,14 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# China's Growing Presence in the Indo-Pacific Region  - Data Exploration and Analysis
+# China’s Hostility to ASEAN Countries in the Indo-Pacific Maritime Region  - Data Exploration and Analysis
 ### Data
+The data from this markdown is from:
+(1) South China Sea Data Initiative - the main dataset that will be explored. The data consists of geolocated incidents related to the ongoing disputes in the South China Sea. The data has 
+(3) Lowy Institute
+(4) Replication Data for: Economic Impact of the South China Sea Dispute in China-Philippines Relations from 2012 to 2016: A DM-LFM analysis
 Incidents related to Chinese and ASEAN vessels will be isolated since I'm only interested in the conflict with the involved ASEAN countries in disputed territorial waters.
+(5) Aggregated Data from News Sources: Asia Maritime Transparency Initiative, Asian Military Review, GMA News, Military Factory, Newsweek.
 
 First, we import necessary libraries.
 ```{r, message=FALSE}
